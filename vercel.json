@@ -4,13 +4,28 @@
         {
             "src": "users.js",
             "use": "@vercel/node"
+        },
+        {
+            "src": "carts.js",
+            "use": "@vercel/node"
+        },
+        {
+            "src": "cart_items.js",
+            "use": "@vercel/node"
         }
     ],
     "routes": [
+        {
+            "src": "/api/carts(.*)",
+            "dest": "carts.js"
+        },
+        {
+            "src": "/api/cart-items(.*)",
+            "dest": "cart_items.js"
+        },
         {
             "src": "/users",
             "dest": "users.js"
         }
     ]
 }
-
