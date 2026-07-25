@@ -33,35 +33,31 @@
   "routes": [
     {
       "src": "/api/users(.*)",
-      "dest": "users.js"
+      "dest": "/users.js"
     },
-
     {
       "src": "/api/orders(.*)",
-      "dest": "orders.js"
+      "dest": "/orders.js"
     },
-
     {
       "src": "/api/order-items(.*)",
-      "dest": "order_items.js"
+      "dest": "/order_items.js"
     },
-
     {
       "src": "/api/categories(.*)",
-      "dest": "categories.js"
+      "dest": "/categories.js"
     },
-
     {
       "src": "/api/products(.*)",
-      "dest": "products.js"
+      "dest": "/products.js"
+    },
+    {
+      "src": "/api/carts(.*)",
+      "dest": "/carts.js"
     },
     {
       "src": "/api/cart-items(.*)",
-      "dest": "cart_items.js"
-    },
-    {
-      "src": "/users",
-      "dest": "users.js"
+      "dest": "/cart_items.js"
     }
   ]
 }
