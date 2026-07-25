@@ -10,22 +10,27 @@ app.use(express.json());
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
 const isPositiveInteger = (value) =>
-  Number.isInteger(Number(value)) && Number(value) > 0;
+  Number.isSafeInteger(Number(value)) && Number(value) > 0;
+
+const isValidSessionToken = (value) =>
+  typeof value === 'string' &&
+  value.trim().length > 0 &&
+  value.length <= 255;
 
 // CREATE: Add a cart for either a registered user or a guest session.
 app.post('/api/carts', async (req, res) => {
   try {
-    const { user_id, guest_session_id } = req.body;
+    const { user_id, session_token } = req.body;
 
-    if (!user_id && !guest_session_id) {
+    if (!user_id && !session_token) {
       return res.status(400).json({
-        error: 'Either user_id or guest_session_id is required.',
+        error: 'Either user_id or session_token is required.',
       });
     }
 
-    if (user_id && guest_session_id) {
+    if (user_id && session_token) {
       return res.status(400).json({
-        error: 'Provide user_id or guest_session_id, not both.',
+        error: 'Provide user_id or session_token, not both.',
       });
     }
 
@@ -33,9 +38,15 @@ app.post('/api/carts', async (req, res) => {
       return res.status(400).json({ error: 'user_id must be a positive integer.' });
     }
 
+    if (session_token && !isValidSessionToken(session_token)) {
+      return res.status(400).json({
+        error: 'session_token must be a non-empty string of at most 255 characters.',
+      });
+    }
+
     const result = await sql`
-      INSERT INTO carts (user_id, guest_session_id, created_at, updated_at)
-      VALUES (${user_id || null}, ${guest_session_id || null}, NOW(), NOW())
+      INSERT INTO carts (user_id, session_token, created_at, updated_at)
+      VALUES (${user_id || null}, ${session_token || null}, NOW(), NOW())
       RETURNING *;
     `;
 
@@ -51,20 +62,26 @@ app.post('/api/carts', async (req, res) => {
   }
 });
 
-// READ: Get all carts. Optional filters: ?user_id=1 or ?guest_session_id=abc.
+// READ: Get all carts. Optional filters: ?user_id=1 or ?session_token=abc.
 app.get('/api/carts', async (req, res) => {
   try {
-    const { user_id, guest_session_id } = req.query;
+    const { user_id, session_token } = req.query;
 
     if (user_id && !isPositiveInteger(user_id)) {
       return res.status(400).json({ error: 'user_id must be a positive integer.' });
     }
 
+    if (session_token && !isValidSessionToken(session_token)) {
+      return res.status(400).json({
+        error: 'session_token must be a non-empty string of at most 255 characters.',
+      });
+    }
+
     const carts = await sql`
-      SELECT id, user_id, guest_session_id, created_at, updated_at
+      SELECT id, user_id, session_token, created_at, updated_at
       FROM carts
       WHERE (${user_id || null}::bigint IS NULL OR user_id = ${user_id || null})
-        AND (${guest_session_id || null}::varchar IS NULL OR guest_session_id = ${guest_session_id || null})
+        AND (${session_token || null}::varchar IS NULL OR session_token = ${session_token || null})
       ORDER BY created_at DESC;
     `;
 
@@ -85,7 +102,7 @@ app.get('/api/carts/:id', async (req, res) => {
     }
 
     const carts = await sql`
-      SELECT id, user_id, guest_session_id, created_at, updated_at
+      SELECT id, user_id, session_token, created_at, updated_at
       FROM carts
       WHERE id = ${id};
     `;
@@ -118,15 +135,15 @@ app.get('/api/carts/:id', async (req, res) => {
 app.put('/api/carts/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { user_id, guest_session_id } = req.body;
+    const { user_id, session_token } = req.body;
 
     if (!isPositiveInteger(id)) {
       return res.status(400).json({ error: 'Cart id must be a positive integer.' });
     }
 
-    if (user_id === undefined && guest_session_id === undefined) {
+    if (user_id === undefined && session_token === undefined) {
       return res.status(400).json({
-        error: 'user_id or guest_session_id is required.',
+        error: 'user_id or session_token is required.',
       });
     }
 
@@ -134,8 +151,14 @@ app.put('/api/carts/:id', async (req, res) => {
       return res.status(400).json({ error: 'user_id must be a positive integer.' });
     }
 
+    if (session_token != null && !isValidSessionToken(session_token)) {
+      return res.status(400).json({
+        error: 'session_token must be a non-empty string of at most 255 characters.',
+      });
+    }
+
     const current = await sql`
-      SELECT user_id, guest_session_id
+      SELECT user_id, session_token
       FROM carts
       WHERE id = ${id};
     `;
@@ -146,17 +169,17 @@ app.put('/api/carts/:id', async (req, res) => {
 
     const nextUserId =
       user_id !== undefined ? user_id : current[0].user_id;
-    const nextGuestSessionId =
-      guest_session_id !== undefined
-        ? guest_session_id
-        : current[0].guest_session_id;
+    const nextSessionToken =
+      session_token !== undefined
+        ? session_token
+        : current[0].session_token;
 
     if (
-      (!nextUserId && !nextGuestSessionId) ||
-      (nextUserId && nextGuestSessionId)
+      (!nextUserId && !nextSessionToken) ||
+      (nextUserId && nextSessionToken)
     ) {
       return res.status(400).json({
-        error: 'A cart must have either user_id or guest_session_id, but not both.',
+        error: 'A cart must have either user_id or session_token, but not both.',
       });
     }
 
@@ -164,7 +187,7 @@ app.put('/api/carts/:id', async (req, res) => {
       UPDATE carts
       SET
         user_id = ${nextUserId || null},
-        guest_session_id = ${nextGuestSessionId || null},
+        session_token = ${nextSessionToken || null},
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *;
@@ -186,7 +209,7 @@ app.put('/api/carts/:id', async (req, res) => {
   }
 });
 
-// DELETE: Delete a cart. Related cart_items should use ON DELETE CASCADE.
+// DELETE: Delete a cart.
 app.delete('/api/carts/:id', async (req, res) => {
   try {
     const { id } = req.params;
