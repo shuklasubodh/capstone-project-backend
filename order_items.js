@@ -21,19 +21,30 @@ app.post('/api/order-items', async (req, res) => {
         const calculatedLineTotal = line_total ?? (unit_price * quantity);
 
         const result = await sql`
-      INSERT INTO order_items (
-        order_id, product_id, sku, product_name, unit_price, quantity, line_total
-      )
-      VALUES (
-        ${order_id}, ${product_id}, ${sku}, ${product_name}, ${unit_price}, ${quantity}, ${calculatedLineTotal}
-      )
-      RETURNING *;
-    `;
+            INSERT INTO order_items (
+                order_id, product_id, sku, product_name, unit_price, quantity, line_total
+            )
+            VALUES (
+                ${order_id}, ${product_id}, ${sku}, ${product_name}, ${unit_price}, ${quantity}, ${calculatedLineTotal}
+            )
+            RETURNING *;
+        `;
 
         res.status(201).json({ message: 'Order item added successfully', order_item: result[0] });
     } catch (error) {
         console.error('Error adding order item:', error);
         res.status(500).json({ error: 'Failed to add order item' });
+    }
+});
+
+// READ All Order Items
+app.get('/api/order-items', async (req, res) => {
+    try {
+        const items = await sql`SELECT * FROM order_items;`;
+        res.status(200).json(items);
+    } catch (error) {
+        console.error('Error fetching all order items:', error);
+        res.status(500).json({ error: 'Failed to fetch order items' });
     }
 });
 
