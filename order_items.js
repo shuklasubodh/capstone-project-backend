@@ -79,7 +79,7 @@ app.post('/api/order-items', async (req, res) => {
 });
 
 // READ Order Items by Order ID
-app.get('/api/order-items/order/:order_id', async (req, res) => {
+app.get('/api/order-items/:order_id', async (req, res) => {
     try {
         const { order_id } = req.params;
 
