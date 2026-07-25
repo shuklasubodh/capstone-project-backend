@@ -27,74 +27,26 @@
       "src": "/api/users(.*)",
       "dest": "users.js"
     },
-    {
-      "src": "/users(.*)",
-      "dest": "users.js"
-    },
+    
     {
       "src": "/api/orders(.*)",
       "dest": "orders.js"
     },
-    {
-      "src": "/orders(.*)",
-      "dest": "orders.js"
-    },
+    
     {
       "src": "/api/order-items(.*)",
       "dest": "order_items.js"
     },
-    {
-      "src": "/order-items(.*)",
-      "dest": "order_items.js"
-    },
+    
     {
       "src": "/api/categories(.*)",
       "dest": "categories.js"
     },
-    {
-      "src": "/categories(.*)",
-      "dest": "categories.js"
-    },
+    
     {
       "src": "/api/products(.*)",
       "dest": "products.js"
-    },
-    {
-      "src": "/products(.*)",
-      "dest": "products.js"
     }
+    
   ]
 }
-
-=========
-    "version": 2,
-    "builds": [
-        {
-            "src": "users.js",
-            "use": "@vercel/node"
-        },
-        {
-            "src": "orders.js",
-            "use": "@vercel/node"
-        },
-        {
-            "src": "order_items.js",
-            "use": "@vercel/node"
-        }
-    ],
-    "routes": [
-        {
-            "src": "/users/(.*)",
-            "dest": "users.js"
-        },
-        {
-            "src": "/api/orders/(.*)",
-            "dest": "orders.js"
-        },
-        {
-            "src": "/api/order-items/(.*)",
-            "dest": "order_items.js"
-        }
-    ]
-}
->>>>>>>>> Temporary merge branch 2
