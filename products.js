@@ -13,6 +13,7 @@ const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 // ==========================================
 // 1. CREATE: Add a new product
 // ==========================================
+// Product
 app.post('/api/products', async (req, res) => {
   try {
     const { 

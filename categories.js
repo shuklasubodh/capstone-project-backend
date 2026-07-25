@@ -13,6 +13,7 @@ const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 // ==========================================
 // 1. CREATE: Add a new category
 // ==========================================
+//Categories
 app.post('/api/categories', async (req, res) => {
   try {
     const { name, slug } = req.body;
