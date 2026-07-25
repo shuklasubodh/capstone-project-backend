@@ -4,13 +4,28 @@
         {
             "src": "users.js",
             "use": "@vercel/node"
+        },
+        {
+            "src": "orders.js",
+            "use": "@vercel/node"
+        },
+        {
+            "src": "order_items.js",
+            "use": "@vercel/node"
         }
     ],
     "routes": [
         {
-            "src": "/users",
+            "src": "/users/(.*)",
             "dest": "users.js"
+        },
+        {
+            "src": "/api/orders/(.*)",
+            "dest": "orders.js"
+        },
+        {
+            "src": "/api/order-items/(.*)",
+            "dest": "order_items.js"
         }
     ]
 }
-
