@@ -10,6 +10,14 @@ app.use(express.json());
 // Initialize Neon SQL client using your database URL
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
+const isPositiveInteger = (value) =>
+  Number.isSafeInteger(Number(value)) && Number(value) > 0;
+
+const isValidPrice = (value) => {
+  const price = Number(value);
+  return Number.isFinite(price) && price >= 0 && price <= 9999999999.99;
+};
+
 // ==========================================
 // 1. CREATE: Add a new product
 // ==========================================
@@ -29,6 +37,22 @@ app.post('/api/products', async (req, res) => {
     // Required fields check based on schema constraints
     if (!sku || !title || unit_price === undefined) {
       return res.status(400).json({ error: 'sku, title, and unit_price are required.' });
+    }
+
+    if (category_id != null && !isPositiveInteger(category_id)) {
+      return res.status(400).json({ error: 'category_id must be a positive integer.' });
+    }
+
+    if (!isValidPrice(unit_price)) {
+      return res.status(400).json({ error: 'unit_price must be a valid non-negative monetary value.' });
+    }
+
+    if (sku.length > 100 || title.length > 255) {
+      return res.status(400).json({ error: 'sku or title exceeds the schema limit.' });
+    }
+
+    if (is_active !== undefined && typeof is_active !== 'boolean') {
+      return res.status(400).json({ error: 'is_active must be a boolean.' });
     }
 
     // Execute Neon tag template query
@@ -61,7 +85,14 @@ app.post('/api/products', async (req, res) => {
     res.status(201).json({ message: 'Product created successfully', product: result[0] });
   } catch (error) {
     console.error('Error creating product:', error);
-    res.status(500).json({ error: 'Failed to create product' });
+    const isForeignKeyError = error.code === '23503';
+    res.status(isForeignKeyError ? 400 : error.code === '23505' ? 409 : 500).json({
+      error: isForeignKeyError
+        ? 'The specified category does not exist.'
+        : error.code === '23505'
+          ? 'A product with this SKU already exists.'
+          : 'Failed to create product'
+    });
   }
 });
 
@@ -87,6 +118,11 @@ app.get('/api/products', async (req, res) => {
 app.get('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!isPositiveInteger(id)) {
+      return res.status(400).json({ error: 'Product id must be a positive integer.' });
+    }
+
     const result = await sql`
       SELECT id, category_id, sku, title, description, unit_price, image_url, is_active, created_at, updated_at 
       FROM products 
@@ -120,6 +156,22 @@ app.put('/api/products/:id', async (req, res) => {
       is_active 
     } = req.body;
 
+    if (!isPositiveInteger(id)) {
+      return res.status(400).json({ error: 'Product id must be a positive integer.' });
+    }
+
+    if (category_id != null && !isPositiveInteger(category_id)) {
+      return res.status(400).json({ error: 'category_id must be a positive integer.' });
+    }
+
+    if (unit_price !== undefined && !isValidPrice(unit_price)) {
+      return res.status(400).json({ error: 'unit_price must be a valid non-negative monetary value.' });
+    }
+
+    if (is_active !== undefined && typeof is_active !== 'boolean') {
+      return res.status(400).json({ error: 'is_active must be a boolean.' });
+    }
+
     const result = await sql`
       UPDATE products
       SET 
@@ -142,7 +194,14 @@ app.put('/api/products/:id', async (req, res) => {
     res.status(200).json({ message: 'Product updated successfully', product: result[0] });
   } catch (error) {
     console.error('Error updating product:', error);
-    res.status(500).json({ error: 'Failed to update product' });
+    const isForeignKeyError = error.code === '23503';
+    res.status(isForeignKeyError ? 400 : error.code === '23505' ? 409 : 500).json({
+      error: isForeignKeyError
+        ? 'The specified category does not exist.'
+        : error.code === '23505'
+          ? 'A product with this SKU already exists.'
+          : 'Failed to update product'
+    });
   }
 });
 
@@ -152,6 +211,10 @@ app.put('/api/products/:id', async (req, res) => {
 app.delete('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!isPositiveInteger(id)) {
+      return res.status(400).json({ error: 'Product id must be a positive integer.' });
+    }
 
     const result = await sql`
       DELETE FROM products 
@@ -166,7 +229,11 @@ app.delete('/api/products/:id', async (req, res) => {
     res.status(200).json({ message: 'Product deleted successfully', id: result[0].id });
   } catch (error) {
     console.error('Error deleting product:', error);
-    res.status(500).json({ error: 'Failed to delete product' });
+    res.status(error.code === '23503' ? 409 : 500).json({
+      error: error.code === '23503'
+        ? 'This product is still referenced by a cart item or order item.'
+        : 'Failed to delete product'
+    });
   }
 });
 

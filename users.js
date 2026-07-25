@@ -10,6 +10,9 @@ app.use(express.json());
 // Initialize Neon SQL client using your database URL
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
+const isPositiveInteger = (value) =>
+  Number.isSafeInteger(Number(value)) && Number(value) > 0;
+
 // ==========================================
 // 1. CREATE: Add a new user
 // ==========================================
@@ -23,8 +26,28 @@ app.post('/api/users', async (req, res) => {
       discount_percentage 
     } = req.body;
 
-    if (!full_name || !email || !password_hash) {
-      return res.status(400).json({ error: 'full_name, email, and password_hash are required.' });
+    if (!full_name || !email || !password_hash || !membership_tier) {
+      return res.status(400).json({
+        error: 'full_name, email, password_hash, and membership_tier are required.'
+      });
+    }
+
+    if (
+      full_name.length > 255 ||
+      email.length > 255 ||
+      password_hash.length > 255 ||
+      membership_tier.length > 50
+    ) {
+      return res.status(400).json({ error: 'One or more user fields exceed the schema limits.' });
+    }
+
+    if (
+      discount_percentage != null &&
+      (!Number.isFinite(Number(discount_percentage)) ||
+        Number(discount_percentage) < 0 ||
+        Number(discount_percentage) > 100)
+    ) {
+      return res.status(400).json({ error: 'discount_percentage must be between 0 and 100.' });
     }
 
     // Execute Neon tag template query
@@ -42,8 +65,8 @@ app.post('/api/users', async (req, res) => {
         ${full_name}, 
         ${email}, 
         ${password_hash}, 
-        ${membership_tier || null}, 
-        ${discount_percentage || null}, 
+        ${membership_tier},
+        ${discount_percentage ?? null},
         NOW(), 
         NOW()
       )
@@ -53,7 +76,9 @@ app.post('/api/users', async (req, res) => {
     res.status(201).json({ message: 'User created successfully', user: result[0] });
   } catch (error) {
     console.error('Error creating user:', error);
-    res.status(500).json({ error: 'Failed to create user' });
+    res.status(error.code === '23505' ? 409 : 500).json({
+      error: error.code === '23505' ? 'A user with this email already exists.' : 'Failed to create user'
+    });
   }
 });
 
@@ -79,6 +104,11 @@ app.get('/api/users', async (req, res) => {
 app.get('/api/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!isPositiveInteger(id)) {
+      return res.status(400).json({ error: 'User id must be a positive integer.' });
+    }
+
     const result = await sql`
       SELECT id, full_name, email, membership_tier, discount_percentage, created_at, updated_at 
       FROM users 
@@ -110,6 +140,19 @@ app.put('/api/users/:id', async (req, res) => {
       discount_percentage 
     } = req.body;
 
+    if (!isPositiveInteger(id)) {
+      return res.status(400).json({ error: 'User id must be a positive integer.' });
+    }
+
+    if (
+      discount_percentage !== undefined &&
+      (!Number.isFinite(Number(discount_percentage)) ||
+        Number(discount_percentage) < 0 ||
+        Number(discount_percentage) > 100)
+    ) {
+      return res.status(400).json({ error: 'discount_percentage must be between 0 and 100.' });
+    }
+
     const result = await sql`
       UPDATE users
       SET 
@@ -130,7 +173,9 @@ app.put('/api/users/:id', async (req, res) => {
     res.status(200).json({ message: 'User updated successfully', user: result[0] });
   } catch (error) {
     console.error('Error updating user:', error);
-    res.status(500).json({ error: 'Failed to update user' });
+    res.status(error.code === '23505' ? 409 : 500).json({
+      error: error.code === '23505' ? 'A user with this email already exists.' : 'Failed to update user'
+    });
   }
 });
 
@@ -140,6 +185,10 @@ app.put('/api/users/:id', async (req, res) => {
 app.delete('/api/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!isPositiveInteger(id)) {
+      return res.status(400).json({ error: 'User id must be a positive integer.' });
+    }
 
     const result = await sql`
       DELETE FROM users 
@@ -154,7 +203,11 @@ app.delete('/api/users/:id', async (req, res) => {
     res.status(200).json({ message: 'User deleted successfully', id: result[0].id });
   } catch (error) {
     console.error('Error deleting user:', error);
-    res.status(500).json({ error: 'Failed to delete user' });
+    res.status(error.code === '23503' ? 409 : 500).json({
+      error: error.code === '23503'
+        ? 'This user is still referenced by a cart or order.'
+        : 'Failed to delete user'
+    });
   }
 });
 

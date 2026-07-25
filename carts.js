@@ -10,7 +10,7 @@ app.use(express.json());
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
 const isPositiveInteger = (value) =>
-  Number.isInteger(Number(value)) && Number(value) > 0;
+  Number.isSafeInteger(Number(value)) && Number(value) > 0;
 
 const isValidSessionToken = (value) =>
   typeof value === 'string' &&

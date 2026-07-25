@@ -10,6 +10,9 @@ app.use(express.json());
 // Initialize Neon SQL client using your database URL
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
+const isPositiveInteger = (value) =>
+  Number.isSafeInteger(Number(value)) && Number(value) > 0;
+
 // ==========================================
 // 1. CREATE: Add a new category
 // ==========================================
@@ -20,6 +23,10 @@ app.post('/api/categories', async (req, res) => {
 
     if (!name || !slug) {
       return res.status(400).json({ error: 'Name and slug are required.' });
+    }
+
+    if (name.length > 255 || slug.length > 255) {
+      return res.status(400).json({ error: 'Name and slug must not exceed 255 characters.' });
     }
 
     // Execute Neon tag template query
@@ -40,7 +47,9 @@ app.post('/api/categories', async (req, res) => {
     res.status(201).json({ message: 'Category created successfully', category: result[0] });
   } catch (error) {
     console.error('Error creating category:', error);
-    res.status(500).json({ error: 'Failed to create category' });
+    res.status(error.code === '23505' ? 409 : 500).json({
+      error: error.code === '23505' ? 'A category with this slug already exists.' : 'Failed to create category'
+    });
   }
 });
 
@@ -66,6 +75,11 @@ app.get('/api/categories', async (req, res) => {
 app.get('/api/categories/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!isPositiveInteger(id)) {
+      return res.status(400).json({ error: 'Category id must be a positive integer.' });
+    }
+
     const result = await sql`
       SELECT id, name, slug, created_at 
       FROM categories 
@@ -91,6 +105,14 @@ app.put('/api/categories/:id', async (req, res) => {
     const { id } = req.params;
     const { name, slug } = req.body;
 
+    if (!isPositiveInteger(id)) {
+      return res.status(400).json({ error: 'Category id must be a positive integer.' });
+    }
+
+    if ((name && name.length > 255) || (slug && slug.length > 255)) {
+      return res.status(400).json({ error: 'Name and slug must not exceed 255 characters.' });
+    }
+
     const result = await sql`
       UPDATE categories
       SET 
@@ -107,7 +129,9 @@ app.put('/api/categories/:id', async (req, res) => {
     res.status(200).json({ message: 'Category updated successfully', category: result[0] });
   } catch (error) {
     console.error('Error updating category:', error);
-    res.status(500).json({ error: 'Failed to update category' });
+    res.status(error.code === '23505' ? 409 : 500).json({
+      error: error.code === '23505' ? 'A category with this slug already exists.' : 'Failed to update category'
+    });
   }
 });
 
@@ -117,6 +141,10 @@ app.put('/api/categories/:id', async (req, res) => {
 app.delete('/api/categories/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!isPositiveInteger(id)) {
+      return res.status(400).json({ error: 'Category id must be a positive integer.' });
+    }
 
     const result = await sql`
       DELETE FROM categories 
@@ -131,7 +159,11 @@ app.delete('/api/categories/:id', async (req, res) => {
     res.status(200).json({ message: 'Category deleted successfully', id: result[0].id });
   } catch (error) {
     console.error('Error deleting category:', error);
-    res.status(500).json({ error: 'Failed to delete category' });
+    res.status(error.code === '23503' ? 409 : 500).json({
+      error: error.code === '23503'
+        ? 'This category still contains products.'
+        : 'Failed to delete category'
+    });
   }
 });
 
