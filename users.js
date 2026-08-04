@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import bcrypt from 'bcrypt';
 import { neon } from '@neondatabase/serverless';
+import { authenticateToken } from './authenticateToken.js';
 import 'dotenv/config';
 
 const app = express();
@@ -13,6 +15,16 @@ const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 const isPositiveInteger = (value) =>
   Number.isSafeInteger(Number(value)) && Number(value) > 0;
 
+const isValidPassword = (value) =>
+  typeof value === 'string' && value.length >= 8 && Buffer.byteLength(value, 'utf8') <= 72;
+
+const saltRounds = (() => {
+  const configured = Number(process.env.BCRYPT_SALT_ROUNDS || 12);
+  return Number.isInteger(configured) && configured >= 10 && configured <= 14
+    ? configured
+    : 12;
+})();
+
 // ==========================================
 // 1. CREATE: Add a new user
 // ==========================================
@@ -21,21 +33,26 @@ app.post('/api/users', async (req, res) => {
     const { 
       full_name, 
       email, 
-      password_hash, 
+      password,
       membership_tier, 
       discount_percentage 
     } = req.body;
 
-    if (!full_name || !email || !password_hash || !membership_tier) {
+    if (!full_name || !email || !password || !membership_tier) {
       return res.status(400).json({
-        error: 'full_name, email, password_hash, and membership_tier are required.'
+        error: 'full_name, email, password, and membership_tier are required.'
+      });
+    }
+
+    if (!isValidPassword(password)) {
+      return res.status(400).json({
+        error: 'password must be at least 8 characters and at most 72 UTF-8 bytes.',
       });
     }
 
     if (
       full_name.length > 255 ||
       email.length > 255 ||
-      password_hash.length > 255 ||
       membership_tier.length > 50
     ) {
       return res.status(400).json({ error: 'One or more user fields exceed the schema limits.' });
@@ -49,6 +66,8 @@ app.post('/api/users', async (req, res) => {
     ) {
       return res.status(400).json({ error: 'discount_percentage must be between 0 and 100.' });
     }
+
+    const passwordHash = await bcrypt.hash(password, saltRounds);
 
     // Execute Neon tag template query
     const result = await sql`
@@ -64,13 +83,13 @@ app.post('/api/users', async (req, res) => {
       VALUES (
         ${full_name}, 
         ${email}, 
-        ${password_hash}, 
+        ${passwordHash},
         ${membership_tier},
         ${discount_percentage ?? null},
         NOW(), 
         NOW()
       )
-      RETURNING *;
+      RETURNING id, full_name, email, membership_tier, discount_percentage, created_at, updated_at;
     `;
 
     res.status(201).json({ message: 'User created successfully', user: result[0] });
@@ -81,6 +100,9 @@ app.post('/api/users', async (req, res) => {
     });
   }
 });
+
+// Every user-management endpoint below registration requires a valid JWT.
+app.use(authenticateToken);
 
 // ==========================================
 // 2. READ: Get all users
@@ -135,13 +157,19 @@ app.put('/api/users/:id', async (req, res) => {
     const { 
       full_name, 
       email, 
-      password_hash, 
+      password,
       membership_tier, 
       discount_percentage 
     } = req.body;
 
     if (!isPositiveInteger(id)) {
       return res.status(400).json({ error: 'User id must be a positive integer.' });
+    }
+
+    if (password !== undefined && !isValidPassword(password)) {
+      return res.status(400).json({
+        error: 'password must be at least 8 characters and at most 72 UTF-8 bytes.',
+      });
     }
 
     if (
@@ -153,17 +181,21 @@ app.put('/api/users/:id', async (req, res) => {
       return res.status(400).json({ error: 'discount_percentage must be between 0 and 100.' });
     }
 
+    const passwordHash = password === undefined
+      ? null
+      : await bcrypt.hash(password, saltRounds);
+
     const result = await sql`
       UPDATE users
       SET 
         full_name = COALESCE(${full_name}, full_name),
         email = COALESCE(${email}, email),
-        password_hash = COALESCE(${password_hash}, password_hash),
+        password_hash = COALESCE(${passwordHash}, password_hash),
         membership_tier = COALESCE(${membership_tier}, membership_tier),
         discount_percentage = COALESCE(${discount_percentage}, discount_percentage),
         updated_at = NOW()
       WHERE id = ${id}
-      RETURNING *;
+      RETURNING id, full_name, email, membership_tier, discount_percentage, created_at, updated_at;
     `;
 
     if (result.length === 0) {
