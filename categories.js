@@ -1,11 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import { neon } from '@neondatabase/serverless';
+import { authenticateToken } from './authenticateToken.js';
 import 'dotenv/config';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(authenticateToken);
 
 // Initialize Neon SQL client using your database URL
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);

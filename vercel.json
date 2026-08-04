@@ -6,6 +6,10 @@
       "use": "@vercel/node"
     },
     {
+      "src": "login.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "orders.js",
       "use": "@vercel/node"
     },
@@ -31,6 +35,10 @@
     }
   ],
   "routes": [
+    {
+      "src": "/api/login",
+      "dest": "/login.js"
+    },
     {
       "src": "/api/users(.*)",
       "dest": "/users.js"
