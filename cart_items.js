@@ -7,7 +7,6 @@ import 'dotenv/config';
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(authenticateToken);
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -62,7 +61,7 @@ app.post('/api/cart-items', async (req, res) => {
 });
 
 // READ: Get all cart items. Filter a cart with ?cart_id=1.
-app.get('/api/cart-items', async (req, res) => {
+app.get('/api/cart-items', authenticateToken, async (req, res) => {
   try {
     const { cart_id } = req.query;
 
@@ -85,7 +84,7 @@ app.get('/api/cart-items', async (req, res) => {
 });
 
 // READ: Get one cart item by ID.
-app.get('/api/cart-items/:id', async (req, res) => {
+app.get('/api/cart-items/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -111,7 +110,7 @@ app.get('/api/cart-items/:id', async (req, res) => {
 });
 
 // UPDATE: Change a cart item's product or quantity.
-app.put('/api/cart-items/:id', async (req, res) => {
+app.put('/api/cart-items/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { product_id, quantity } = req.body;
@@ -164,7 +163,7 @@ app.put('/api/cart-items/:id', async (req, res) => {
 });
 
 // DELETE: Remove one item from a cart.
-app.delete('/api/cart-items/:id', async (req, res) => {
+app.delete('/api/cart-items/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 

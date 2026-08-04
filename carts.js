@@ -7,7 +7,6 @@ import 'dotenv/config';
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(authenticateToken);
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -65,7 +64,7 @@ app.post('/api/carts', async (req, res) => {
 });
 
 // READ: Get all carts. Optional filters: ?user_id=1 or ?session_token=abc.
-app.get('/api/carts', async (req, res) => {
+app.get('/api/carts', authenticateToken, async (req, res) => {
   try {
     const { user_id, session_token } = req.query;
 
@@ -95,7 +94,7 @@ app.get('/api/carts', async (req, res) => {
 });
 
 // READ: Get one cart and its current items.
-app.get('/api/carts/:id', async (req, res) => {
+app.get('/api/carts/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -134,7 +133,7 @@ app.get('/api/carts/:id', async (req, res) => {
 });
 
 // UPDATE: Change the registered user or guest session associated with a cart.
-app.put('/api/carts/:id', async (req, res) => {
+app.put('/api/carts/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { user_id, session_token } = req.body;
@@ -212,7 +211,7 @@ app.put('/api/carts/:id', async (req, res) => {
 });
 
 // DELETE: Delete a cart.
-app.delete('/api/carts/:id', async (req, res) => {
+app.delete('/api/carts/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 

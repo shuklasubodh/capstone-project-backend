@@ -30,9 +30,20 @@ Send credentials to `POST /api/login`:
 
 The response contains `token`, `expires_in`, and a safe `user` object.
 
+## Public guest APIs
+
+Guests can browse the catalog and start checkout without a JWT:
+
+- `GET /api/products` and `GET /api/products/:id`
+- `GET /api/categories` and `GET /api/categories/:id`
+- `POST /api/carts` with a `session_token`
+- `POST /api/cart-items`
+- `POST /api/orders` with a nullable `user_id`
+- `POST /api/order-items`
+
 ## Call protected APIs
 
-All other routes require this header:
+User management and all remaining create, read, update, and delete routes require this header:
 
 ```text
 Authorization: Bearer <token>

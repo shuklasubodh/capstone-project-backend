@@ -7,7 +7,6 @@ import 'dotenv/config';
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(authenticateToken);
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -81,7 +80,7 @@ app.post('/api/order-items', async (req, res) => {
 });
 
 // READ Order Items by Order ID
-app.get('/api/order-items/order/:order_id', async (req, res) => {
+app.get('/api/order-items/order/:order_id', authenticateToken, async (req, res) => {
     try {
         const { order_id } = req.params;
 
@@ -98,7 +97,7 @@ app.get('/api/order-items/order/:order_id', async (req, res) => {
 });
 
 // DELETE Order Item
-app.delete('/api/order-items/:id', async (req, res) => {
+app.delete('/api/order-items/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
 
