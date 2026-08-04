@@ -7,7 +7,6 @@ import 'dotenv/config';
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(authenticateToken);
 
 // Initialize Neon SQL client using your database URL
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -24,7 +23,7 @@ const isValidPrice = (value) => {
 // 1. CREATE: Add a new product
 // ==========================================
 // Product
-app.post('/api/products', async (req, res) => {
+app.post('/api/products', authenticateToken, async (req, res) => {
   try {
     const { 
       category_id, 
@@ -145,7 +144,7 @@ app.get('/api/products/:id', async (req, res) => {
 // ==========================================
 // 3. UPDATE: Update product by ID
 // ==========================================
-app.put('/api/products/:id', async (req, res) => {
+app.put('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { 
@@ -210,7 +209,7 @@ app.put('/api/products/:id', async (req, res) => {
 // ==========================================
 // 4. DELETE: Delete product by ID
 // ==========================================
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 

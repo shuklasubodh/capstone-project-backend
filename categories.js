@@ -7,7 +7,6 @@ import 'dotenv/config';
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(authenticateToken);
 
 // Initialize Neon SQL client using your database URL
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -19,7 +18,7 @@ const isPositiveInteger = (value) =>
 // 1. CREATE: Add a new category
 // ==========================================
 //Categories
-app.post('/api/categories', async (req, res) => {
+app.post('/api/categories', authenticateToken, async (req, res) => {
   try {
     const { name, slug } = req.body;
 
@@ -102,7 +101,7 @@ app.get('/api/categories/:id', async (req, res) => {
 // ==========================================
 // 3. UPDATE: Update category by ID
 // ==========================================
-app.put('/api/categories/:id', async (req, res) => {
+app.put('/api/categories/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, slug } = req.body;
@@ -140,7 +139,7 @@ app.put('/api/categories/:id', async (req, res) => {
 // ==========================================
 // 4. DELETE: Delete category by ID
 // ==========================================
-app.delete('/api/categories/:id', async (req, res) => {
+app.delete('/api/categories/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 

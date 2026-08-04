@@ -7,7 +7,6 @@ import 'dotenv/config';
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(authenticateToken);
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -88,7 +87,7 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // READ All Orders
-app.get('/api/orders', async (req, res) => {
+app.get('/api/orders', authenticateToken, async (req, res) => {
     try {
         const orders = await sql`SELECT * FROM orders;`;
         res.status(200).json(orders);
@@ -99,7 +98,7 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // READ Single Order
-app.get('/api/orders/:id', async (req, res) => {
+app.get('/api/orders/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -121,7 +120,7 @@ app.get('/api/orders/:id', async (req, res) => {
 });
 
 // UPDATE Order Status or Details
-app.put('/api/orders/:id', async (req, res) => {
+app.put('/api/orders/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { status, shipping_address, total_amount } = req.body;
@@ -156,7 +155,7 @@ app.put('/api/orders/:id', async (req, res) => {
 });
 
 // DELETE Order
-app.delete('/api/orders/:id', async (req, res) => {
+app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
 
