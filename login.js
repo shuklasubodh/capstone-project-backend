@@ -26,7 +26,7 @@ app.post('/api/login', async (req, res) => {
     }
 
     const result = await sql`
-      SELECT id, full_name, email, password_hash, membership_tier, discount_percentage
+      SELECT id, full_name, email, password_hash, membership_tier, discount_percentage, is_admin
       FROM users
       WHERE LOWER(email) = LOWER(${email.trim()})
       LIMIT 1;
@@ -49,6 +49,7 @@ app.post('/api/login', async (req, res) => {
         name: user.full_name,
         email: user.email,
         membership_tier: user.membership_tier,
+        is_admin: user.is_admin,
       },
       process.env.JWT_SECRET,
       { algorithm: 'HS256', expiresIn },
@@ -64,6 +65,7 @@ app.post('/api/login', async (req, res) => {
         email: user.email,
         membership_tier: user.membership_tier,
         discount_percentage: user.discount_percentage,
+        is_admin: user.is_admin,
       },
     });
   } catch (error) {

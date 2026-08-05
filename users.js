@@ -3,6 +3,7 @@ import cors from 'cors';
 import bcrypt from 'bcrypt';
 import { neon } from '@neondatabase/serverless';
 import { authenticateToken } from './authenticateToken.js';
+import { authorizeAdmin } from './authorizeAdmin.js';
 import 'dotenv/config';
 
 const app = express();
@@ -101,8 +102,8 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
-// Every user-management endpoint below registration requires a valid JWT.
-app.use(authenticateToken);
+// Every user-management endpoint below registration requires an administrator JWT.
+app.use(authenticateToken, authorizeAdmin);
 
 // ==========================================
 // 2. READ: Get all users
@@ -110,7 +111,7 @@ app.use(authenticateToken);
 app.get('/api/users', async (req, res) => {
   try {
     const users = await sql`
-      SELECT id, full_name, email, membership_tier, discount_percentage, created_at, updated_at 
+      SELECT id, full_name, email, membership_tier, discount_percentage, is_admin, created_at, updated_at
       FROM users;
     `;
     res.status(200).json(users);
@@ -132,8 +133,8 @@ app.get('/api/users/:id', async (req, res) => {
     }
 
     const result = await sql`
-      SELECT id, full_name, email, membership_tier, discount_percentage, created_at, updated_at 
-      FROM users 
+      SELECT id, full_name, email, membership_tier, discount_percentage, is_admin, created_at, updated_at
+      FROM users
       WHERE id = ${id};
     `;
 
@@ -159,11 +160,16 @@ app.put('/api/users/:id', async (req, res) => {
       email, 
       password,
       membership_tier, 
-      discount_percentage 
+      discount_percentage,
+      is_admin
     } = req.body;
 
     if (!isPositiveInteger(id)) {
       return res.status(400).json({ error: 'User id must be a positive integer.' });
+    }
+
+    if (is_admin !== undefined && typeof is_admin !== 'boolean') {
+      return res.status(400).json({ error: 'is_admin must be a boolean.' });
     }
 
     if (password !== undefined && !isValidPassword(password)) {
@@ -193,9 +199,10 @@ app.put('/api/users/:id', async (req, res) => {
         password_hash = COALESCE(${passwordHash}, password_hash),
         membership_tier = COALESCE(${membership_tier}, membership_tier),
         discount_percentage = COALESCE(${discount_percentage}, discount_percentage),
+        is_admin = COALESCE(${is_admin}, is_admin),
         updated_at = NOW()
       WHERE id = ${id}
-      RETURNING id, full_name, email, membership_tier, discount_percentage, created_at, updated_at;
+      RETURNING id, full_name, email, membership_tier, discount_percentage, is_admin, created_at, updated_at;
     `;
 
     if (result.length === 0) {
