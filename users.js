@@ -36,7 +36,8 @@ app.post('/api/users', async (req, res) => {
       email, 
       password,
       membership_tier, 
-      discount_percentage 
+      discount_percentage,
+      is_admin
     } = req.body;
 
     if (!full_name || !email || !password || !membership_tier) {
@@ -49,6 +50,10 @@ app.post('/api/users', async (req, res) => {
       return res.status(400).json({
         error: 'password must be at least 8 characters and at most 72 UTF-8 bytes.',
       });
+    }
+
+    if (is_admin !== undefined && typeof is_admin !== 'boolean') {
+      return res.status(400).json({ error: 'is_admin must be a boolean.' });
     }
 
     if (
@@ -77,7 +82,8 @@ app.post('/api/users', async (req, res) => {
         email, 
         password_hash, 
         membership_tier, 
-        discount_percentage, 
+        discount_percentage,
+        is_admin,
         created_at, 
         updated_at
       )
@@ -87,10 +93,11 @@ app.post('/api/users', async (req, res) => {
         ${passwordHash},
         ${membership_tier},
         ${discount_percentage ?? null},
+        ${is_admin ?? false},
         NOW(), 
         NOW()
       )
-      RETURNING id, full_name, email, membership_tier, discount_percentage, created_at, updated_at;
+      RETURNING id, full_name, email, membership_tier, discount_percentage, is_admin, created_at, updated_at;
     `;
 
     res.status(201).json({ message: 'User created successfully', user: result[0] });
