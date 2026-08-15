@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import { neon } from '@neondatabase/serverless';
 import { authenticateToken } from './authenticateToken.js';
 import { authorizeAdmin } from './authorizeAdmin.js';
+import { normalizeMembershipTier } from './membershipTier.js';
 import 'dotenv/config';
 
 const app = express();
@@ -46,6 +47,10 @@ app.post('/api/users', async (req, res) => {
       });
     }
 
+    if (typeof membership_tier !== 'string') {
+      return res.status(400).json({ error: 'membership_tier must be a string.' });
+    }
+
     if (!isValidPassword(password)) {
       return res.status(400).json({
         error: 'password must be at least 8 characters and at most 72 UTF-8 bytes.',
@@ -74,6 +79,7 @@ app.post('/api/users', async (req, res) => {
     }
 
     const passwordHash = await bcrypt.hash(password, saltRounds);
+    const normalizedMembershipTier = normalizeMembershipTier(membership_tier);
 
     // Execute Neon tag template query
     const result = await sql`
@@ -91,7 +97,7 @@ app.post('/api/users', async (req, res) => {
         ${full_name}, 
         ${email}, 
         ${passwordHash},
-        ${membership_tier},
+        ${normalizedMembershipTier},
         ${discount_percentage ?? null},
         ${is_admin ?? false},
         NOW(), 
@@ -179,6 +185,10 @@ app.put('/api/users/:id', async (req, res) => {
       return res.status(400).json({ error: 'is_admin must be a boolean.' });
     }
 
+    if (membership_tier !== undefined && typeof membership_tier !== 'string') {
+      return res.status(400).json({ error: 'membership_tier must be a string.' });
+    }
+
     if (password !== undefined && !isValidPassword(password)) {
       return res.status(400).json({
         error: 'password must be at least 8 characters and at most 72 UTF-8 bytes.',
@@ -197,6 +207,9 @@ app.put('/api/users/:id', async (req, res) => {
     const passwordHash = password === undefined
       ? null
       : await bcrypt.hash(password, saltRounds);
+    const normalizedMembershipTier = membership_tier === undefined
+      ? null
+      : normalizeMembershipTier(membership_tier);
 
     const result = await sql`
       UPDATE users
@@ -204,7 +217,7 @@ app.put('/api/users/:id', async (req, res) => {
         full_name = COALESCE(${full_name}, full_name),
         email = COALESCE(${email}, email),
         password_hash = COALESCE(${passwordHash}, password_hash),
-        membership_tier = COALESCE(${membership_tier}, membership_tier),
+        membership_tier = COALESCE(${normalizedMembershipTier}, membership_tier),
         discount_percentage = COALESCE(${discount_percentage}, discount_percentage),
         is_admin = COALESCE(${is_admin}, is_admin),
         updated_at = NOW()
